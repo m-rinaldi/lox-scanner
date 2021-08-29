@@ -6,6 +6,9 @@ type Result<T> = std::result::Result<T, ()>;
 
 pub struct Scanner<'a> {
     source: Peekable<Chars<'a>>,
+    current: Option<char>,
+    // TODO count: usize,
+    // TODO move this out?
     lexeme: String,
     line: usize,
 }
@@ -15,6 +18,7 @@ impl<'a> Scanner<'a> {
         let source = source.chars().peekable();
         Scanner {
             source,
+            current: None,
             lexeme: String::new(),
             line: 0,
         }
@@ -24,6 +28,7 @@ impl<'a> Scanner<'a> {
         self.source.next()
     }
 
+    /// lookahead by one element
     fn peek(&mut self) -> Option<&char> {
         self.source.peek()
     }
@@ -40,22 +45,16 @@ impl<'a> Scanner<'a> {
                 vec.push(Ok(token));
             } else if let Some(token) = self.scan_two_chars(c) {
                 vec.push(Ok(token));
-                // TODO copy the lexeme into the token
-                self.lexeme.clear();
             } else {
                 match self.scan_multi_chars(c) {
                     Ok(Some(token)) => {
-                        // TODO copy the lexeme into the token
                         vec.push(Ok(token));
-                        self.lexeme.clear();
                     }
                     Ok(None) => {
-                        self.lexeme.clear();
                         continue;
                     }
                     Err(err) => {
                         vec.push(Err(err));
-                        self.lexeme.clear();
                     }
                 }
             }
@@ -92,11 +91,10 @@ impl<'a> Scanner<'a> {
             '=' => Star,
             _ => return None,
         };
-
-        self.lexeme.clear();
         Some(token)
     }
 
+    // TODO rename advance_if_matches() or next_if_matches()
     fn next_matches(&mut self, c: char) -> bool {
         if Some(&c) == self.peek() {
             self.advance();
@@ -136,9 +134,23 @@ impl<'a> Scanner<'a> {
                 return Ok(None);
             },
             '/' => Slash,
+
+            '"' => return self.tokenize_string(),
             _ => return Err(()),
         };
         Ok(Some(token))
+    }
+
+    fn tokenize_string(&mut self) -> Result<Option<Token>> {
+        while !matches!(self.peek(), Some(&'"') | None) {
+            if matches!(self.peek(), Some(&'\n')) {
+                self.line += 1;
+                self.advance();
+            }
+        }
+
+        // either end of input or closing double quotes found
+        Ok(None)
     }
 }
 
@@ -169,4 +181,6 @@ mod tests {
         let tokens = scanner.scan_tokens();
         assert_eq!(tokens.len(), 17);
     }
+
+    // TODO test unterminated string (EOF before closing ")
 }
