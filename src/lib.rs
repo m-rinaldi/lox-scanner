@@ -34,7 +34,8 @@ impl<'a> Scanner<'a> {
 
     pub fn scan_tokens(&mut self) -> Vec<Result<Token>> {
         let mut vec = Vec::new();
-        while let Some(c) = self.next_skip_blanks() {
+
+        while let Some(c) = self.next_with_blanks_skipped() {
             if let Some(token) = self.scan_single_char(c) {
                 vec.push(Ok(token));
             } else if let Some(token) = self.scan_two_chars(c) {
@@ -48,7 +49,10 @@ impl<'a> Scanner<'a> {
                         vec.push(Ok(token));
                         self.lexeme.clear();
                     }
-                    Ok(None) => continue,
+                    Ok(None) => {
+                        self.lexeme.clear();
+                        continue;
+                    }
                     Err(err) => {
                         vec.push(Err(err));
                         self.lexeme.clear();
@@ -59,18 +63,18 @@ impl<'a> Scanner<'a> {
         vec
     }
 
-    fn next_skip_blanks(&mut self) -> Option<char> {
-        while let Some(c) = self.peek() {
+    fn next_with_blanks_skipped(&mut self) -> Option<char> {
+        while let Some(c) = self.next() {
             match c {
                 ' ' | '\r' | '\t' => self.advance(),
                 '\n' => {
                     self.line += 1;
                     self.advance();
                 },
-                _ => (),
+                _ => return Some(c)
             };
         }
-        self.next()
+        None
     }
 
     fn scan_single_char(&mut self, c: char) -> Option<Token> {
@@ -98,7 +102,6 @@ impl<'a> Scanner<'a> {
             self.advance();
             return true;
         }
-
         false
     }
 
@@ -119,7 +122,6 @@ impl<'a> Scanner<'a> {
 
             _ => return None,
         };
-
         Some(token)
     }
 
@@ -133,7 +135,6 @@ impl<'a> Scanner<'a> {
                 }
                 return Ok(None);
             },
-
             '/' => Slash,
             _ => return Err(()),
         };
@@ -153,15 +154,19 @@ mod tests {
         assert!(tokens.is_empty());
     }
 
+    #[test]
     fn test_single_char() {
         let source = "+";
         let mut scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens();
+        assert_eq!(tokens.len(), 1);
     }
 
     #[test]
-    fn test_single_char_token() {
+    fn test_list_single_char_tokens() {
         let source = "(){}[],.;-+/*=!><";
-
+        let mut scanner = Scanner::new(source);
+        let tokens = scanner.scan_tokens();
+        assert_eq!(tokens.len(), 17);
     }
 }

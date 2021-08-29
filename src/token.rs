@@ -1,4 +1,4 @@
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Token {
     // single-character tokens
     LeftParen, RightParen,
@@ -16,7 +16,7 @@ pub enum Token {
     Less, LessEqual,
 
     // literals
-    Identifiers, String, Number,
+    Identifiers(String), String(String), Number(String, f32),
 
     // keywords
     // TODO
