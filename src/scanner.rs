@@ -18,36 +18,44 @@ impl<'a> Scanner<'a> {
         }
     }
 
+    fn next(&mut self) -> Option<char> {
+        self.source.next()
+    }
+
     fn peek(&mut self) -> Option<&char> {
         self.source.peek()
     }
 
     fn advance(&mut self) {
-        self.source.next();
+        self.next();
     }
 
     fn scan_tokens(&mut self) -> Vec<Token> {
         let mut vec = Vec::new();
-
-        while let Some(c) = self.source.next() {
+        while let Some(c) = self.next_skip_blanks() {
             if let Some(token) = self.scan_single_char(c) {
                 vec.push(token);
+            } else if let Some(token) = self.scan_two_char(c) {
+                vec.push(token);
+                // TODO copy the lexeme into the token
+                self.lexeme.clear();
             }
         }
-
         vec
     }
 
-    fn skip_blanks(&mut self, c: char) {
-        match c {
-            ' ' | '\r' | '\t' => self.advance(),
-            '\n' => {
-                self.line += 1;
-                self.advance();
-            },
-
-            _ => (),
-        };
+    fn next_skip_blanks(&mut self) -> Option<char> {
+        while let Some(c) = self.peek() {
+            match c {
+                ' ' | '\r' | '\t' => self.advance(),
+                '\n' => {
+                    self.line += 1;
+                    self.advance();
+                },
+                _ => (),
+            };
+        }
+        self.next()
     }
 
     fn scan_single_char(&mut self, c: char) -> Option<Token> {
