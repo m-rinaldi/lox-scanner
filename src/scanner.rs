@@ -38,6 +38,18 @@ impl<'a> Scanner<'a> {
         vec
     }
 
+    fn skip_blanks(&mut self, c: char) {
+        match c {
+            ' ' | '\r' | '\t' => self.advance(),
+            '\n' => {
+                self.line += 1;
+                self.advance();
+            },
+
+            _ => (),
+        };
+    }
+
     fn scan_single_char(&mut self, c: char) -> Option<Token> {
         use Token::*;
         let token = match c {
