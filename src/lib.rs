@@ -2,6 +2,8 @@ mod token;
 use token::Token;
 use std::{iter::Peekable, str::Chars};
 
+type Result<T> = std::result::Result<T, ()>;
+
 pub struct Scanner<'a> {
     source: Peekable<Chars<'a>>,
     lexeme: String,
@@ -30,19 +32,28 @@ impl<'a> Scanner<'a> {
         self.next();
     }
 
-    pub fn scan_tokens(&mut self) -> Vec<Token> {
+    pub fn scan_tokens(&mut self) -> Vec<Result<Token>> {
         let mut vec = Vec::new();
         while let Some(c) = self.next_skip_blanks() {
             if let Some(token) = self.scan_single_char(c) {
-                vec.push(token);
+                vec.push(Ok(token));
             } else if let Some(token) = self.scan_two_chars(c) {
-                vec.push(token);
+                vec.push(Ok(token));
                 // TODO copy the lexeme into the token
                 self.lexeme.clear();
-            } else if let Some(token) = self.scan_multi_chars(c) {
-                // TODO copy the lexeme into the token
-                vec.push(token);
-                self.lexeme.clear();
+            } else {
+                match self.scan_multi_chars(c) {
+                    Ok(Some(token)) => {
+                        // TODO copy the lexeme into the token
+                        vec.push(Ok(token));
+                        self.lexeme.clear();
+                    }
+                    Ok(None) => continue,
+                    Err(err) => {
+                        vec.push(Err(err));
+                        self.lexeme.clear();
+                    }
+                }
             }
         }
         vec
@@ -112,7 +123,7 @@ impl<'a> Scanner<'a> {
         Some(token)
     }
 
-    fn scan_multi_chars(&mut self, c: char) -> Option<Token> {
+    fn scan_multi_chars(&mut self, c: char) -> Result<Option<Token>> {
         use Token::*;
         let token = match c {
             '/' if self.next_matches('/') => {
@@ -120,14 +131,13 @@ impl<'a> Scanner<'a> {
                 while !matches!(self.peek(), None | Some(&'\n')) {
                     self.advance();
                 }
-                return None;
+                return Ok(None);
             },
 
             '/' => Slash,
-
-            _ => return None,
+            _ => return Err(()),
         };
-        Some(token)
+        Ok(Some(token))
     }
 }
 
