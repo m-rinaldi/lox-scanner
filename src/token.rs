@@ -4,14 +4,12 @@ pub enum Token {
     LeftParen, RightParen,
     LeftBrace, RightBrace,
     LeftBracket, RightBracket,
-    Comma,
-    Dot,
+    Comma, Dot, Semicolon,
     Minus, Plus,
-    Semicolon,
-    Slash,
-    Star,
+    Slash, Star,
 
-    // one or two character tokens
+    // one-character tokens and two-character tokens that contain
+    // these one-character tokens
     Bang, BangEqual,
     Equal, EqualEqual,
     Greater, GreaterEqual,
