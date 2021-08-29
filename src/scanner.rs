@@ -30,7 +30,7 @@ impl<'a> Scanner<'a> {
         self.next();
     }
 
-    fn scan_tokens(&mut self) -> Vec<Token> {
+    pub fn scan_tokens(&mut self) -> Vec<Token> {
         let mut vec = Vec::new();
         while let Some(c) = self.next_skip_blanks() {
             if let Some(token) = self.scan_single_char(c) {
@@ -41,6 +41,7 @@ impl<'a> Scanner<'a> {
                 self.lexeme.clear();
             } else if let Some(token) = self.scan_multi_chars(c) {
                 // TODO copy the lexeme into the token
+                vec.push(token);
                 self.lexeme.clear();
             }
         }
@@ -82,7 +83,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn next_matches(&mut self, c: char) -> bool {
-        if let Some(&c) = self.peek() {
+        if Some(&c) == self.peek() {
             self.advance();
             return true;
         }
