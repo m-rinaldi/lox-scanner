@@ -35,8 +35,11 @@ impl<'a> Scanner<'a> {
         while let Some(c) = self.next_skip_blanks() {
             if let Some(token) = self.scan_single_char(c) {
                 vec.push(token);
-            } else if let Some(token) = self.scan_two_char(c) {
+            } else if let Some(token) = self.scan_two_chars(c) {
                 vec.push(token);
+                // TODO copy the lexeme into the token
+                self.lexeme.clear();
+            } else if let Some(token) = self.scan_multi_chars(c) {
                 // TODO copy the lexeme into the token
                 self.lexeme.clear();
             }
@@ -87,7 +90,7 @@ impl<'a> Scanner<'a> {
         false
     }
 
-    fn scan_two_char(&mut self, c: char) -> Option<Token> {
+    fn scan_two_chars(&mut self, c: char) -> Option<Token> {
         use Token::*;
         let token = match c {
             '!' if self.next_matches('=') => BangEqual,
@@ -105,6 +108,24 @@ impl<'a> Scanner<'a> {
             _ => return None,
         };
 
+        Some(token)
+    }
+
+    fn scan_multi_chars(&mut self, c: char) -> Option<Token> {
+        use Token::*;
+        let token = match c {
+            '/' if self.next_matches('/') => {
+                // the comment goes until the end of the line
+                while !matches!(self.peek(), None | Some(&'\n')) {
+                    self.advance();
+                }
+                return None;
+            },
+
+            '/' => Slash,
+
+            _ => return None,
+        };
         Some(token)
     }
 }
