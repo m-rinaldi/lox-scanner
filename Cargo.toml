@@ -2,6 +2,7 @@
 name = "lox-scanner"
 version = "0.0.1"
 edition = "2018"
+description = "lexical scanner for Lox"
 authors = ["Jorge Rinaldi <jrg.rinaldi@gmail.com>"]
 license = "MIT"
 
