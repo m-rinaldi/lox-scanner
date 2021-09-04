@@ -177,33 +177,33 @@ impl<T> Scanner<T>
     }
 }
 
-/* #[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    fn test_empty_source() {
-        let source = "";
-        let mut scanner = Scanner::new(source);
-        let tokens = scanner.scan_tokens();
-        assert!(tokens.is_empty());
-    }
+//     #[test]
+//     fn test_empty_source() {
+//         let source = "";
+//         let mut scanner = Scanner::new(source);
+//         let tokens = scanner.scan_tokens();
+//         assert!(tokens.is_empty());
+//     }
 
-    #[test]
-    fn test_single_char() {
-        let source = "+";
-        let mut scanner = Scanner::new(source);
-        let tokens = scanner.scan_tokens();
-        assert_eq!(tokens.len(), 1);
-    }
+//     #[test]
+//     fn test_single_char() {
+//         let source = "+";
+//         let mut scanner = Scanner::new(source);
+//         let tokens = scanner.scan_tokens();
+//         assert_eq!(tokens.len(), 1);
+//     }
 
-    #[test]
-    fn test_list_single_char_tokens() {
-        let source = "(){}[],.;-+/*=!><";
-        let mut scanner = Scanner::new(source);
-        let tokens = scanner.scan_tokens();
-        assert_eq!(tokens.len(), 17);
-    }
+//     #[test]
+//     fn test_list_single_char_tokens() {
+//         let source = "(){}[],.;-+/*=!><";
+//         let mut scanner = Scanner::new(source);
+//         let tokens = scanner.scan_tokens();
+//         assert_eq!(tokens.len(), 17);
+//     }
 
-    // TODO test unterminated string (EOF before closing ")
-} */
+//     // TODO test unterminated string (EOF before closing ")
+// }
