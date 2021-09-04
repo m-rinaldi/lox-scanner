@@ -85,7 +85,31 @@ mod tests {
     fn test_empty() {
         let mut source = SourceIterator::new("".chars());
         assert_eq!(source.peek(), None);
+        // TODO peek one ahead
         assert_eq!(source.next(), None);
         assert_eq!(source.next_nonblank(), None);
+    }
+
+    #[test]
+    fn test_single_char() {
+        let mut source = SourceIterator::new("A".chars());
+        assert_eq!(source.peek(), Some(&'A'));
+        // TODO peek one ahead
+        assert_eq!(source.next(), Some('A'));
+        assert_eq!(source.peek(), None);
+        assert_eq!(source.next(), None);
+    }
+
+    #[test]
+    fn test_two_chars() {
+        let mut source = SourceIterator::new("AB".chars());
+        assert_eq!(source.peek(), Some(&'A'));
+        // TODO peek one ahead
+        assert_eq!(source.next(), Some('A'));
+        assert_eq!(source.peek(), Some(&'B'));
+        // TODO peek one aheads
+        assert_eq!(source.next(), Some('B'));
+        assert_eq!(source.peek(), None);
+        assert_eq!(source.next(), None);
     }
 }
