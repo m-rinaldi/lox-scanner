@@ -53,6 +53,10 @@ impl<T> SourceIterator<T>
         self.source.peek()
     }
 
+    pub(crate) fn peek_ahead(&mut self) -> Option<&char> {
+        todo!()
+    }
+
     pub(crate) fn current_line(&self) -> usize {
         self.line
     }
