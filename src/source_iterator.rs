@@ -1,4 +1,3 @@
-use std::str::Chars;
 use std::iter::{Fuse, Peekable};
 
 pub(crate) struct SourceIterator<T>
@@ -28,7 +27,7 @@ impl<T> SourceIterator<T>
                 ' ' | '\r' | '\t' => (),
 
                 // update the line count
-                '\n' => self.line += 1,
+                '\n' => self.line = self.line.saturating_add(1),
 
                 // a non-blank character
                 _ => return Some(c)
@@ -59,7 +58,7 @@ impl<T> SourceIterator<T>
     }
 
     pub(crate) fn inc_current_line_by(&mut self, inc: usize) {
-        self.line = self.line.checked_add(inc).unwrap();
+        self.line = self.line.saturating_add(inc)
     }
 }
 
