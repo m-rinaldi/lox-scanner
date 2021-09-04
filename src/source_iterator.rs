@@ -72,3 +72,16 @@ impl<T> Iterator for SourceIterator<T>
         self.source.next()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty() {
+        let mut source = SourceIterator::new("".chars());
+        assert_eq!(source.peek(), None);
+        assert_eq!(source.next(), None);
+        assert_eq!(source.next_nonblank(), None);
+    }
+}
