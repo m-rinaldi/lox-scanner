@@ -2,45 +2,79 @@ mod token;
 use token::Token;
 use std::{iter::Peekable, str::Chars};
 
-type Result<T> = std::result::Result<T, ()>;
+type Result<T> = std::result::Result<T, String>;
 
-pub struct Scanner<'a> {
-    source: Peekable<Chars<'a>>,
+mod source_iterator;
+
+use source_iterator::SourceIterator;
+
+pub struct Scanner<T: Iterator<Item=char>> {
+    source: SourceIterator<T>,
     current: Option<char>,
-    // TODO count: usize,
-    // TODO move this out?
-    lexeme: String,
     line: usize,
 }
 
-impl<'a> Scanner<'a> {
-    pub fn new(source: &'a str) -> Self {
-        let source = source.chars().peekable();
+impl<T> Scanner<T>
+    where
+        T: Iterator<Item=char>,
+{
+    pub fn new<'a>(source: T) -> Self {
+        // TODO
+        let mut source = SourceIterator::new(source);
+        let first = source.next();
         Scanner {
             source,
-            current: None,
-            lexeme: String::new(),
+            current: first,
             line: 0,
         }
     }
 
-    fn next(&mut self) -> Option<char> {
-        self.source.next()
+    #[deprecated]
+    fn current(&self) -> Option<char> {
+        self.current
     }
 
+    #[deprecated]
+    fn skip_blanks(&mut self) -> Option<char> {
+        while let Some(c) = self.current() {
+            match c {
+                ' ' | '\r' | '\t' => self.advance(),
+                '\n' => {
+                    self.line += 1;
+                    self.advance();
+                },
+                _ => return Some(c)
+            };
+        }
+        None
+    }
+
+    #[deprecated]
     /// lookahead by one element
     fn peek(&mut self) -> Option<&char> {
         self.source.peek()
     }
 
+    #[deprecated]
     fn advance(&mut self) {
-        self.next();
+        debug_assert!(!matches!(self.current(), None));
+        self.source.next();
+    }
+
+    #[deprecated]
+    // TODO rename advance_if_matches() or next_if_matches()
+    fn next_matches(&mut self, c: char) -> bool {
+        if Some(&c) == self.peek() {
+            self.advance();
+            return true;
+        }
+        false
     }
 
     pub fn scan_tokens(&mut self) -> Vec<Result<Token>> {
         let mut vec = Vec::new();
 
-        while let Some(c) = self.next_with_blanks_skipped() {
+        while let Some(c) = self.skip_blanks() {
             if let Some(token) = self.scan_single_char(c) {
                 vec.push(Ok(token));
             } else if let Some(token) = self.scan_two_chars(c) {
@@ -62,20 +96,6 @@ impl<'a> Scanner<'a> {
         vec
     }
 
-    fn next_with_blanks_skipped(&mut self) -> Option<char> {
-        while let Some(c) = self.next() {
-            match c {
-                ' ' | '\r' | '\t' => self.advance(),
-                '\n' => {
-                    self.line += 1;
-                    self.advance();
-                },
-                _ => return Some(c)
-            };
-        }
-        None
-    }
-
     fn scan_single_char(&mut self, c: char) -> Option<Token> {
         use Token::*;
         let token = match c {
@@ -92,15 +112,6 @@ impl<'a> Scanner<'a> {
             _ => return None,
         };
         Some(token)
-    }
-
-    // TODO rename advance_if_matches() or next_if_matches()
-    fn next_matches(&mut self, c: char) -> bool {
-        if Some(&c) == self.peek() {
-            self.advance();
-            return true;
-        }
-        false
     }
 
     fn scan_two_chars(&mut self, c: char) -> Option<Token> {
@@ -132,29 +143,41 @@ impl<'a> Scanner<'a> {
                     self.advance();
                 }
                 return Ok(None);
-            },
+            }
             '/' => Slash,
 
-            '"' => return self.tokenize_string(),
-            _ => return Err(()),
+            '"' => {
+                match self.scan_string() {
+                    Ok(token) => return Ok(Some(token)),
+                    Err(err) => return Err(err),
+                }
+            }
+            // no match found
+            _ => return Err("no match found".to_string()),
         };
         Ok(Some(token))
     }
 
-    fn tokenize_string(&mut self) -> Result<Option<Token>> {
+    fn scan_string(&mut self) -> Result<Token> /* <-- this has to be either a token or an error but not an optional */ {
+        // TODO optimize by allocating the optimal capacity
+        let mut lexeme = String::new();
         while !matches!(self.peek(), Some(&'"') | None) {
             if matches!(self.peek(), Some(&'\n')) {
                 self.line += 1;
                 self.advance();
+                lexeme.push(self.current().unwrap());
             }
         }
-
         // either end of input or closing double quotes found
-        Ok(None)
+        if let None = self.current() {
+            return Err("unterminated string".to_string())
+        }
+        self.advance(); // skip the closing double quotes
+        Ok(Token::String(lexeme))
     }
 }
 
-#[cfg(test)]
+/* #[cfg(test)]
 mod tests {
     use super::*;
 
@@ -183,4 +206,4 @@ mod tests {
     }
 
     // TODO test unterminated string (EOF before closing ")
-}
+} */

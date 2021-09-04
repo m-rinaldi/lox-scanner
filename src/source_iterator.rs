@@ -3,7 +3,7 @@ use std::iter::{Fuse, Peekable};
 
 pub(crate) struct SourceIterator<T>
     where
-        T: Iterator<Item=char>
+        T: Iterator<Item=char>,
 {
     source: Peekable<Fuse<T>>,
     line: usize,
