@@ -11,40 +11,51 @@ pub struct Scanner<T: Iterator<Item=char>> {
     source: SourceIterator<T>,
 }
 
+impl Scanner<std::str::Chars<'_>> {
+    // TODO can I do this lifetime less restrictive?
+    pub fn from_str(s: &'static str) -> Self {
+        let chars = s.chars();
+        let source = SourceIterator::new(chars);
+        Scanner {
+            source: source,
+        }
+    }
+}
+
 impl<T> Scanner<T>
     where
         T: Iterator<Item=char>,
 {
-    pub fn new<'a>(source: T) -> Self {
+    // TODO implement from iterator instead
+    pub fn new(source: T) -> Self {
         let source = SourceIterator::new(source);
         Scanner {
             source,
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Vec<Result<Token>> {
-        let mut vec = Vec::new();
-
+    fn scan_token(&mut self) -> Result<Token> {
         while let Some(c) = self.source.next_nonblank() {
             if let Some(token) = self.scan_single_char(c) {
-                vec.push(Ok(token));
+                return Ok(token);
             } else if let Some(token) = self.scan_two_chars(c) {
-                vec.push(Ok(token));
+                return Ok(token);
             } else {
                 match self.scan_multi_chars(c) {
                     Ok(Some(token)) => {
-                        vec.push(Ok(token));
+                        return Ok(token);
                     }
-                    Ok(None) => {
+
+                    Ok(None) => { // comment consumed
                         continue;
                     }
                     Err(err) => {
-                        vec.push(Err(err));
+                        return Err(err);
                     }
                 }
             }
         }
-        vec
+        Ok(Token::EndOfFile)
     }
 
     fn scan_single_char(&mut self, c: char) -> Option<Token> {
@@ -54,12 +65,15 @@ impl<T> Scanner<T>
             ')' => RightParen,
             '{' => LeftBrace,
             '}' => RightBrace,
+            '[' => LeftBracket,
+            ']' => RightBracket,
             ',' => Comma,
             '.' => Dot,
             '-' => Minus,
             '+' => Plus,
+            '*' => Star,
             ';' => Semicolon,
-            '=' => Star,
+            '=' => Equal,
             _ => return None,
         };
         Some(token)
@@ -78,7 +92,7 @@ impl<T> Scanner<T>
             '<' => Less,
 
             '>' if self.source.advance_if_matches('=') => GreaterEqual,
-            '>' => GreaterEqual,
+            '>' => Greater,
 
             _ => return None,
         };
@@ -93,7 +107,7 @@ impl<T> Scanner<T>
                 while !matches!(self.source.peek(), None | Some(&'\n')) {
                     self.source.next();
                 }
-                return Ok(None);
+                return Ok(None); // comment consumed
             }
             '/' => Slash,
 
@@ -130,33 +144,93 @@ impl<T> Scanner<T>
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+impl<T> IntoIterator for Scanner<T>
+    where
+        T: Iterator<Item=char>,
+{
+    type Item = Result<Token>;
+    type IntoIter = TokenIterator<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        TokenIterator {
+            scanner: self
+        }
+    }
+}
 
-//     #[test]
-//     fn test_empty_source() {
-//         let source = "";
-//         let mut scanner = Scanner::new(source);
-//         let tokens = scanner.scan_tokens();
-//         assert!(tokens.is_empty());
-//     }
+pub struct TokenIterator<T: Iterator<Item=char>> {
+    scanner: Scanner<T>,
+}
 
-//     #[test]
-//     fn test_single_char() {
-//         let source = "+";
-//         let mut scanner = Scanner::new(source);
-//         let tokens = scanner.scan_tokens();
-//         assert_eq!(tokens.len(), 1);
-//     }
+impl<T> Iterator for TokenIterator<T>
+    where T:
+        Iterator<Item=char>,
+{
+    type Item = Result<Token>;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.scanner.scan_token() {
+            Ok(Token::EndOfFile) => None,
+            Ok(val) => Some(Ok(val)),
+            Err(err) => Some(Err(err)),
+        }
+    }
+}
 
-//     #[test]
-//     fn test_list_single_char_tokens() {
-//         let source = "(){}[],.;-+/*=!><";
-//         let mut scanner = Scanner::new(source);
-//         let tokens = scanner.scan_tokens();
-//         assert_eq!(tokens.len(), 17);
-//     }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     // TODO test unterminated string (EOF before closing ")
-// }
+    #[test]
+    fn test_empty_source() {
+        let source = "";
+        let mut scanner = Scanner::from_str(source);
+        let token = scanner.scan_token();
+        assert!(matches!(token, Ok(Token::EndOfFile)));
+    }
+
+    #[test]
+    fn test_single_char() {
+        let source = "+";
+        let mut scanner = Scanner::from_str(source);
+        let token = scanner.scan_token();
+        assert!(matches!(token, Ok(Token::Plus)));
+    }
+
+    #[test]
+    fn test_list_single_char_tokens() {
+        use Token::*;
+        let source = "(){}[],.;-+/*=!><";
+        let mut scanner = Scanner::from_str(source);
+        let mut output: Vec<Result<Token>> = vec![
+            Ok(LeftParen),
+            Ok(RightParen),
+            Ok(LeftBrace),
+            Ok(RightBrace),
+            Ok(LeftBracket),
+            Ok(RightBracket),
+            Ok(Comma),
+            Ok(Dot),
+            Ok(Semicolon),
+            Ok(Minus),
+            Ok(Plus),
+            Ok(Slash),
+            Ok(Star),
+            Ok(Equal),
+            Ok(Bang),
+            Ok(Greater),
+            Ok(Less),
+        ];
+
+        output.reverse();
+
+        for token in scanner {
+            assert_eq!(token, output.pop().unwrap());
+        }
+    }
+
+    #[test]
+    fn test_unterminated_string() {
+        let source = "\"this is unterminated\nstring";
+        let scanner = Scanner::from_str(source);
+
+    }
+}
