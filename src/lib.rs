@@ -131,9 +131,9 @@ impl<T> Scanner<T>
             if matches!(self.source.peek(), Some(&'\n')) {
                 // bypassing the next_nonblank(), soneed to keep track of new lines
                 self.source.inc_current_line_by(1);
-                let c = self.source.next();
-                lexeme.push(c.unwrap());
             }
+            let c = self.source.next();
+            lexeme.push(c.unwrap());
         }
         // either end of input or closing double quotes found
         match self.source.next() {
@@ -230,7 +230,19 @@ mod tests {
     #[test]
     fn test_unterminated_string() {
         let source = "\"this is unterminated\nstring";
-        let scanner = Scanner::from_str(source);
+        let mut scanner = Scanner::from_str(source);
+        let token = scanner.scan_token();
+        assert!(matches!(token, Err(_)));
+    }
 
+    #[test]
+    fn test_string() {
+        let source = "\"FooBarBuzz\"";
+        let mut scanner = Scanner::from_str(source);
+        let token = scanner.scan_token();
+        match token {
+            Ok(Token::String(s)) => assert_eq!(s, "FooBarBuzz"),
+            _ => unreachable!("it should have returned a String token"),
+        }
     }
 }
