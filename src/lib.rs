@@ -1,23 +1,23 @@
 mod token;
-use token::Token;
-
-type Result<T> = std::result::Result<T, String>;
-
 mod source_iterator;
 
 use source_iterator::SourceIterator;
+use token::Token;
 
 pub struct Scanner<T: Iterator<Item=char>> {
     source: SourceIterator<T>,
+    line: usize,
+    // TODO keep track of the column as well
 }
 
 impl Scanner<std::str::Chars<'_>> {
-    // TODO can I do this lifetime less restrictive?
+    // TODO can I do this with a less restrictive lifetime?
     pub fn from_str(s: &'static str) -> Self {
         let chars = s.chars();
         let source = SourceIterator::new(chars);
         Scanner {
             source: source,
+            line: 0,
         }
     }
 }
@@ -31,31 +31,33 @@ impl<T> Scanner<T>
         let source = SourceIterator::new(source);
         Scanner {
             source,
+            line: 0,
         }
     }
 
-    fn scan_token(&mut self) -> Result<Token> {
-        while let Some(c) = self.source.next_nonblank() {
-            if let Some(token) = self.scan_single_char(c) {
-                return Ok(token);
-            } else if let Some(token) = self.scan_two_chars(c) {
-                return Ok(token);
-            } else {
-                match self.scan_multi_chars(c) {
-                    Ok(Some(token)) => {
-                        return Ok(token);
-                    }
-
-                    Ok(None) => { // comment consumed
-                        continue;
-                    }
-                    Err(err) => {
-                        return Err(err);
-                    }
-                }
+    pub fn next_nonblank(&mut self) -> Option<char> {
+        while let Some(c) = self.source.next() {
+            match c {
+                ' ' | '\r' | '\t' => (),
+                // update the line count
+                '\n' => self.line = self.line.saturating_add(1),
+                _ => return Some(c),
             }
         }
-        Ok(Token::EndOfFile)
+        None
+    }
+
+    fn scan_token(&mut self) -> Option<Token> {
+        while let Some(c) = self.next_nonblank() {
+            if let Some(token) = self.scan_single_char(c) {
+                return Some(token);
+            } else if let Some(token) = self.scan_two_chars(c) {
+                return Some(token);
+            } else if let Some(token) = self.scan_multi_chars(c) {
+                return Some(token);
+            }
+        }
+        None
     }
 
     fn scan_single_char(&mut self, c: char) -> Option<Token> {
@@ -82,16 +84,16 @@ impl<T> Scanner<T>
     fn scan_two_chars(&mut self, c: char) -> Option<Token> {
         use Token::*;
         let token = match c {
-            '!' if self.source.advance_if_matches('=') => BangEqual,
+            '!' if self.source.next_if_matches('=') => BangEqual,
             '!' => Bang,
 
-            '=' if self.source.advance_if_matches('=') => EqualEqual,
+            '=' if self.source.next_if_matches('=') => EqualEqual,
             '=' => Equal,
 
-            '<' if self.source.advance_if_matches('=')=> LessEqual,
+            '<' if self.source.next_if_matches('=')=> LessEqual,
             '<' => Less,
 
-            '>' if self.source.advance_if_matches('=') => GreaterEqual,
+            '>' if self.source.next_if_matches('=') => GreaterEqual,
             '>' => Greater,
 
             _ => return None,
@@ -99,46 +101,39 @@ impl<T> Scanner<T>
         Some(token)
     }
 
-    fn scan_multi_chars(&mut self, c: char) -> Result<Option<Token>> {
+    fn scan_multi_chars(&mut self, c: char) -> Option<Token> {
         use Token::*;
-        let token = match c {
-            '/' if self.source.advance_if_matches('/') => {
+        match c {
+            '/' if self.source.next_if_matches('/') => {
                 // the comment goes until the end of the line
                 while !matches!(self.source.peek(), None | Some(&'\n')) {
                     self.source.next();
                 }
-                return Ok(None); // comment consumed
+                None // comment consumed
             }
-            '/' => Slash,
-
-            '"' => {
-                match self.scan_string() {
-                    Ok(token) => return Ok(Some(token)),
-                    Err(err) => return Err(err),
-                }
-            }
+            '/' => Some(Slash),
+            '"' => return self.scan_string(),
             // no match found
-            _ => return Err("no match found".to_string()),
-        };
-        Ok(Some(token))
+            _ => Some(Invalid("no match found".to_string(), self.line)),
+        }
     }
 
-    fn scan_string(&mut self) -> Result<Token> /* <-- this has to be either a token or an error but not an optional */ {
+    fn scan_string(&mut self) -> Option<Token> /* <-- this has to be either a token or an error but not an optional */ {
         // TODO optimize by allocating the optimal capacity
         let mut lexeme = String::new();
         while !matches!(self.source.peek(), Some(&'"') | None) {
             // neither end of input nor end of string
             if matches!(self.source.peek(), Some(&'\n')) {
                 // bypassing the next_nonblank(), soneed to keep track of new lines
-                self.source.inc_current_line_by(1);
+                self.line = self.line.saturating_add(1);
             }
             let c = self.source.next();
             lexeme.push(c.unwrap());
         }
         // either end of input or closing double quotes found
         match self.source.next() {
-            None => return Err("unterminated string".to_string()),
-            Some('"') => return Ok(Token::String(lexeme)),
+            None => return Some(Token::Invalid("unterminated string".to_string(), self.line)),
+            Some('"') => return Some(Token::String(lexeme)),
             _ => unreachable!(),
         }
     }
@@ -148,7 +143,7 @@ impl<T> IntoIterator for Scanner<T>
     where
         T: Iterator<Item=char>,
 {
-    type Item = Result<Token>;
+    type Item = Token;
     type IntoIter = TokenIterator<T>;
     fn into_iter(self) -> Self::IntoIter {
         TokenIterator {
@@ -165,13 +160,9 @@ impl<T> Iterator for TokenIterator<T>
     where T:
         Iterator<Item=char>,
 {
-    type Item = Result<Token>;
+    type Item = Token;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.scanner.scan_token() {
-            Ok(Token::EndOfFile) => None,
-            Ok(val) => Some(Ok(val)),
-            Err(err) => Some(Err(err)),
-        }
+        self.scanner.scan_token()
     }
 }
 
@@ -184,7 +175,7 @@ mod tests {
         let source = "";
         let mut scanner = Scanner::from_str(source);
         let token = scanner.scan_token();
-        assert!(matches!(token, Ok(Token::EndOfFile)));
+        assert!(matches!(token, None));
     }
 
     #[test]
@@ -192,32 +183,32 @@ mod tests {
         let source = "+";
         let mut scanner = Scanner::from_str(source);
         let token = scanner.scan_token();
-        assert!(matches!(token, Ok(Token::Plus)));
+        assert!(matches!(token, Some(Token::Plus)));
     }
 
     #[test]
     fn test_list_single_char_tokens() {
         use Token::*;
         let source = "(){}[],.;-+/*=!><";
-        let mut scanner = Scanner::from_str(source);
-        let mut output: Vec<Result<Token>> = vec![
-            Ok(LeftParen),
-            Ok(RightParen),
-            Ok(LeftBrace),
-            Ok(RightBrace),
-            Ok(LeftBracket),
-            Ok(RightBracket),
-            Ok(Comma),
-            Ok(Dot),
-            Ok(Semicolon),
-            Ok(Minus),
-            Ok(Plus),
-            Ok(Slash),
-            Ok(Star),
-            Ok(Equal),
-            Ok(Bang),
-            Ok(Greater),
-            Ok(Less),
+        let scanner = Scanner::from_str(source);
+        let mut output = vec![
+            LeftParen,
+            RightParen,
+            LeftBrace,
+            RightBrace,
+            LeftBracket,
+            RightBracket,
+            Comma,
+            Dot,
+            Semicolon,
+            Minus,
+            Plus,
+            Slash,
+            Star,
+            Equal,
+            Bang,
+            Greater,
+            Less,
         ];
 
         output.reverse();
@@ -232,7 +223,7 @@ mod tests {
         let source = "\"this is unterminated\nstring";
         let mut scanner = Scanner::from_str(source);
         let token = scanner.scan_token();
-        assert!(matches!(token, Err(_)));
+        assert!(matches!(token, Some(Token::Invalid(_,_))));
     }
 
     #[test]
@@ -241,7 +232,7 @@ mod tests {
         let mut scanner = Scanner::from_str(source);
         let token = scanner.scan_token();
         match token {
-            Ok(Token::String(s)) => assert_eq!(s, "FooBarBuzz"),
+            Some(Token::String(s)) => assert_eq!(s, "FooBarBuzz"),
             _ => unreachable!("it should have returned a String token"),
         }
     }

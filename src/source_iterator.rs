@@ -1,11 +1,12 @@
-use std::iter::{Fuse, Peekable};
+use peekmore::{PeekMore, PeekMoreIterator};
+use std::iter::Fuse;
 
+/// it provides lookahead for two characters at most
 pub(crate) struct SourceIterator<T>
-    where
+    where // TODO do I need a trait bound here on the struct?
         T: Iterator<Item=char>,
 {
-    source: Peekable<Fuse<T>>,
-    line: usize,
+    source: PeekMoreIterator<Fuse<T>>,
 }
 
 impl<T> SourceIterator<T>
@@ -14,33 +15,13 @@ impl<T> SourceIterator<T>
 {
     pub(crate) fn new(source: T) -> Self {
         SourceIterator {
-            source: source.fuse().peekable(),
-            line: 0,
+            source: source.fuse().peekmore(),
         }
-    }
-
-    /// returns the next non-blank character
-    /// that is, neither carriage return, new line, tab or space
-    pub(crate) fn next_nonblank(&mut self) -> Option<char> {
-        while let Some(c) = self.next() {
-            match c {
-                ' ' | '\r' | '\t' => (),
-
-                // update the line count
-                '\n' => self.line = self.line.saturating_add(1),
-
-                // a non-blank character
-                _ => return Some(c)
-            };
-        }
-
-        // input exhausted
-        None
     }
 
     /// performs a lookahead and if it matches it does use up the character
     /// and returns true
-    pub(crate) fn advance_if_matches(&mut self, c: char) -> bool {
+    pub(crate) fn next_if_matches(&mut self, c: char) -> bool {
         if Some(&c) == self.peek() {
             self.next();
             return true;
@@ -48,21 +29,14 @@ impl<T> SourceIterator<T>
         false
     }
 
-    /// lookahead
+    /// lookahead by one character
     pub(crate) fn peek(&mut self) -> Option<&char> {
         self.source.peek()
     }
 
+    /// lookahead by two characters
     pub(crate) fn peek_ahead(&mut self) -> Option<&char> {
-        todo!()
-    }
-
-    pub(crate) fn current_line(&self) -> usize {
-        self.line
-    }
-
-    pub(crate) fn inc_current_line_by(&mut self, inc: usize) {
-        self.line = self.line.saturating_add(inc)
+        self.source.peek_nth(1)
     }
 }
 
@@ -87,7 +61,6 @@ mod tests {
         assert_eq!(source.peek(), None);
         // TODO peek one ahead
         assert_eq!(source.next(), None);
-        assert_eq!(source.next_nonblank(), None);
     }
 
     #[test]

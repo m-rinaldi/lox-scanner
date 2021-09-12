@@ -20,5 +20,5 @@ pub enum Token {
 
     // keywords
     // TODO
-    EndOfFile,
+    Invalid(String, usize),
 }
