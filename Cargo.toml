@@ -6,7 +6,7 @@ description = "lexical scanner for Lox"
 authors = ["Jorge Rinaldi <jrg.rinaldi@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/m-rinaldi/lox-scanner"
-keywords = ["lox", "scanner", "lexer", "lexical", "analysis", "token"]
+keywords = ["lox", "scanner", "lexer", "token"]
 categories = ["parsing", "parser-implementations"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
