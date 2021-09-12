@@ -2,7 +2,13 @@
 name = "lox-scanner"
 version = "0.1.0"
 edition = "2018"
+description = "lexical scanner for Lox"
+authors = ["Jorge Rinaldi <jrg.rinaldi@gmail.com>"]
+license = "MIT"
+keywords = ["lox", "scanner", "lexer", "lexical", "analysis", "token"]
+categories = ["parsing", "parser-implementations"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+peekmore = "~1"

@@ -1,26 +1,24 @@
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Token {
     // single-character tokens
     LeftParen, RightParen,
     LeftBrace, RightBrace,
     LeftBracket, RightBracket,
-    Comma,
-    Dot,
+    Comma, Dot, Semicolon,
     Minus, Plus,
-    Semicolon,
-    Slash,
-    Star,
+    Slash, Star,
 
-    // one or two character tokens
+    // one-character tokens and two-character tokens that contain
+    // these one-character tokens
     Bang, BangEqual,
     Equal, EqualEqual,
     Greater, GreaterEqual,
     Less, LessEqual,
 
     // literals
-    Identifiers, String, Number,
+    Identifiers(String), String(String), Number(String, f32),
 
     // keywords
     // TODO
-    EndOfFile,
+    Invalid(String, usize),
 }
