@@ -5,6 +5,7 @@ edition = "2018"
 description = "lexical scanner for Lox"
 authors = ["Jorge Rinaldi <jrg.rinaldi@gmail.com>"]
 license = "MIT"
+repository = "https://github.com/m-rinaldi/lox-scanner"
 keywords = ["lox", "scanner", "lexer", "lexical", "analysis", "token"]
 categories = ["parsing", "parser-implementations"]
 
